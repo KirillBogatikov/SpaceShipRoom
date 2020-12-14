@@ -5,13 +5,13 @@
 SoftwareSerial BtSerial(2, 3);
 
 void setup() {
-  Serial.begin(9600);
-  leds::setup();
+    Serial.begin(9600);
+    leds::setup();
   
-  pinMode(2,INPUT);
-  pinMode(3,OUTPUT);
-  BtSerial.begin(9600);
-  Serial.println("start prg");
+    pinMode(2,INPUT);
+    pinMode(3,OUTPUT);
+    BtSerial.begin(9600);
+    Serial.println("start prg");
 }
 
 char* EXPECTED_PASSWORD = "p1Z5q6cA";
@@ -20,99 +20,81 @@ char* EXPECTED_PASSWORD = "p1Z5q6cA";
 #define PAYLOAD_LENGTH PACKAGE_LENGTH - PASSWORD_LENGTH
 
 bool eq(char* a, char *b, byte l) {
-  for (byte i = 0; i < l; i++) {
-    if (a[i] != b[i]) {
-      return false;
+    for (byte i = 0; i < l; i++) {
+      if (a[i] != b[i]) {
+          return false;
+      }
     }
-  }
 
-  return true;
+    return true;
 }
 
 void println(char* str, byte l) {
-  for (byte i = 0; i < l; i++) {
-    Serial.print(str[i]);
-  }
-  Serial.println();
+    for (byte i = 0; i < l; i++) {
+        Serial.print(str[i]);
+    }
+    Serial.println();
 }
 
 unsigned long time;
 
-void loop() {  /*
-  for (byte p = 0; p < PANELS_COUNT - 1; p++) {
-    byte pinStatus;
-    switch(p) {
-      case 0: 
-      case 1: pinStatus = WORKBENCH_STATUS_PIN; break;
-      case 2: pinStatus = FIRST_SHELF_STATUS_PIN; break;
-      case 3: pinStatus = SECOND_SHELF_STATUS_PIN; break;
-      case 4: pinStatus = THIRD_SHELF_STATUS_PIN; break;
-    }
+void loop() {
+    if (millis() - time > 1000) {
+        if (BtSerial.available()) {
+            char* password = new char[PASSWORD_LENGTH]{};
+            for (byte i = 0; i < PASSWORD_LENGTH; i++) {
+                password[i] = BtSerial.read();
+            }
 
-  
-    int d = analogRead(pinStatus);
-    Serial.print(p);
-    Serial.print(" - ");
-    Serial.println(d);
-  }
+            Serial.print("\nPassword: ");
+            println(password, PASSWORD_LENGTH);
+            bool passwordCheck = eq(password, EXPECTED_PASSWORD, PASSWORD_LENGTH);
+            if (!passwordCheck) {
+            Serial.println("Password incorrect");
+            }
 
-  delay(5000);*/
+            delete password;
 
-  if (millis() - time > 1000) {
-    if (BtSerial.available()) {    
-      char* password = new char[PASSWORD_LENGTH]{};
-      for (byte i = 0; i < PASSWORD_LENGTH; i++) {
-        password[i] = BtSerial.read();
-      }
+            char* payload = new char[PAYLOAD_LENGTH];
+
+            for (byte i = 0; i < PAYLOAD_LENGTH; i++) {
+                if (!BtSerial.available()) {
+                    Serial.println("Payload incorrect");
+                    return;
+                }
+
+                payload[i] = BtSerial.read();
+            }
+
+            Serial.print("Payload");
+            println(payload, PAYLOAD_LENGTH);
+
+            delete payload;
+
+            if (!passwordCheck) {
+                return;
+            }
+
+            Serial.println("----");
+        }
   
-      Serial.print("\nPassword: ");
-      println(password, PASSWORD_LENGTH);
-      bool passwordCheck = eq(password, EXPECTED_PASSWORD, PASSWORD_LENGTH);
-      if (!passwordCheck) {
-        Serial.println("Password incorrect");
-      }
-        
-      delete password;
-      
-      char* payload = new char[PAYLOAD_LENGTH];
-    
-      for (byte i = 0; i < PAYLOAD_LENGTH; i++) {
-          if (!BtSerial.available()) {
-              Serial.println("Payload incorrect");
-              return;
-          }
-          
-          payload[i] = BtSerial.read();
-      }
-  
-      Serial.print("Payload");
-      println(payload, PAYLOAD_LENGTH);
-  
-      delete payload;
-    
-      if (!passwordCheck) {
-        return;
-      }
-      Serial.println("----");
+        Serial.println("No data");
+        time = millis();
     }
   
-    Serial.println("No data");
-    time = millis();
-  }
-  
-  for (byte p = 0; p < PANELS_COUNT; p++) {
-    leds::LedLightPanel panel = leds::panels[p];
+    for (byte p = 0; p < PANELS_COUNT; p++) {
+        leds::LedLightPanel panel = leds::panels[p];
 
-    for (byte i = 0; i < panel.length(); i++) {      
-      drawing::ColorFunction colorFunction = drawing::colorFunctions[panel.mode];
-      panel.set(i, colorFunction(i, panel.settings));
+        for (byte i = 0; i < panel.length(); i++) {
+            drawing::ColorFunction colorFunction = drawing::colorFunctions[panel.mode];
+            panel.set(i, colorFunction(i, panel.settings));
+        }
+
+        drawing::save(panel);
+        leds::panels[p] = panel;
     }
 
-    drawing::save(panel);
-    leds::panels[p] = panel;
-  }
+    leds::show();
 
-  leds::show();
-
-  delay(10);
+    delay(10);
 }
